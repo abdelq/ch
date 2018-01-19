@@ -1,6 +1,6 @@
 /*
  * Auteurs : Abdelhakim Qbaich, Rémi Langevin
- * Date : 2018-01-18
+ * Date : 2018-02-10
  * Problèmes connus : S.O.
  */
 
@@ -13,15 +13,12 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-#define MAX_ARGS 128		// XXX
+#define MAX_ARGS 128
 
-// TODO Rename function
-// TODO Manage quotation marks and escape sequences
-// XXX What if we pass MAX_ARGS
-void parse(char **line, char **args)
+void parse(char **args, char **line)
 {
 	char *arg;
-	while (arg = strsep(line, " ")) {	// XXX " \t\n\r"
+	while (arg = strsep(line, " ")) {
 		if (*arg) {
 			*args++ = arg;
 		}
@@ -32,7 +29,7 @@ void parse(char **line, char **args)
 int main(void)
 {
 	char *line;
-	char *args[MAX_ARGS];
+	char *cmd[MAX_ARGS];
 	pid_t pid;
 	int status;
 
@@ -42,23 +39,32 @@ int main(void)
 		}
 
 		add_history(line);
-		parse(&line, args);
+		parse(cmd, &line);
 
-		// TODO Test
-		if ((pid = fork()) < 0) {
+		if ((pid = fork()) == -1) {
 			perror("ch");
-			return EXIT_FAILURE;
+			exit(EXIT_FAILURE);
+		}
+		// TODO Move to another function
+		if (pid == 0) {	// Child
+			if (*cmd) {
+				if (execvp(*cmd, cmd) == -1) {
+					if (errno == ENOENT) {
+						fprintf(stderr,
+							"ch: %s: command not found\n",
+							*cmd);
+					} else {
+						perror("ch");
+					}
+					exit(EXIT_FAILURE);
+				}
+			}
+			exit(EXIT_SUCCESS);
+		} else {	// Parent
+			// TODO Integrate content from waitpid(2)
+			waitpid(pid, &status, WUNTRACED);
 		}
 
-		if (pid == 0) {
-			if (*args) {
-				execvp(*args, args);	// TODO Read doc about execvp
-				perror("ch");	// TODO Check output w/ perror(*args)
-				// return EXIT_FAILURE ?
-			}
-			return EXIT_SUCCESS;	// XXX
-		} else {
-			waitpid(pid, &status, WUNTRACED);	// TODO Read the doc
-		}
+		free(line);
 	}
 }
