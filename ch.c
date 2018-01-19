@@ -15,6 +15,14 @@
 
 #define MAX_ARGS 128
 
+int cd(char *path)
+{
+	if (!path) {
+		return chdir(getenv("HOME"));
+	}
+	return chdir(path);
+}
+
 void parse(char **args, char **line)
 {
 	char *arg;
@@ -40,6 +48,17 @@ int main(void)
 
 		add_history(line);
 		parse(cmd, &line);
+
+		// Builtin Commands
+		if (strcmp(cmd[0], "exit") == 0) {
+			exit(EXIT_SUCCESS);
+		} else if (strcmp(cmd[0], "cd") == 0) {
+			// TODO Too many arguments
+			if (cd(cmd[1]) == -1) {
+				perror("ch");	// TODO Bash-like error
+			}
+			continue;
+		}
 
 		if ((pid = fork()) == -1) {
 			perror("ch");
