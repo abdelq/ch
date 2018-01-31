@@ -73,7 +73,7 @@ int main(void)
 		} else if (strcmp(cmd[0], "cd") == 0) {
 			// Too many arguments
 			if (cmd[2]) {
-				fprintf(stderr, "ch: cd: too many arguments\n");	// XXX
+				fprintf(stderr, "twado: cd: too many arguments\n");	// XXX
 				continue;
 			}
 
@@ -93,10 +93,10 @@ int main(void)
 			if (execvp(*cmd, cmd) == -1) {
 				if (errno == ENOENT) {
 					fprintf(stderr,
-						"ch: %s: command not found\n",
+						"twado: %s: command not found\n",
 						*cmd);
 				} else {
-					perror("ch");
+					perror("twado");
 				}
 				exit(EXIT_FAILURE);
 			}
