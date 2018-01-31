@@ -38,6 +38,7 @@ void parse(char **args, char **line)
 				// TODO ~/Workspace/ should be valid
 				// TODO ~julius should be valid...
 			}
+			// TODO Regex maybe ?
 			if (arg[0] == '$' && strlen(arg) > 1) {
 				arg = getenv(arg + 1);
 			}
@@ -55,24 +56,24 @@ int main(void)
 	pid_t pid;
 	int status;
 
-	// XXX Multiple spaces crashes it
-	// TODO Check code of rc
 	while ((line = readline("% "))) {
 		if (!*line) {
 			continue;
 		}
 
 		add_history(line);
-		parse(cmd, &line);
 
+		parse(cmd, &line);
+		if (!*cmd) {
+			continue;
+		}
 		// Builtin Commands
 		if (strcmp(cmd[0], "exit") == 0) {
 			exit(EXIT_SUCCESS);
 		} else if (strcmp(cmd[0], "cd") == 0) {
 			// Too many arguments
 			if (cmd[2]) {
-				fprintf(stderr,
-					"ch: %s: too many arguments\n", *cmd);
+				fprintf(stderr, "ch: cd: too many arguments\n");	// XXX
 				continue;
 			}
 
@@ -81,9 +82,6 @@ int main(void)
 			}
 			continue;
 		}
-		// Environment variable
-		// TODO Look for =, for every equal found, abort if no = after in other commands ? KEK=kek ls gives shit to command
-		// TODO Use putenv w/ string, no need to bother with splitting
 
 		if ((pid = fork()) == -1) {
 			perror("ch");
@@ -91,19 +89,16 @@ int main(void)
 		}
 		// TODO Move to another function
 		if (pid == 0) {	// Child
-			if (*cmd) {
-				// TODO Use execve and then use new array for env variables
-				/*execve(argv[0], &argv[0], envp); */
-				if (execvp(*cmd, cmd) == -1) {
-					if (errno == ENOENT) {
-						fprintf(stderr,
-							"ch: %s: command not found\n",
-							*cmd);
-					} else {
-						perror("ch");
-					}
-					exit(EXIT_FAILURE);
+			// TODO Use execve and then use new array for env variables
+			if (execvp(*cmd, cmd) == -1) {
+				if (errno == ENOENT) {
+					fprintf(stderr,
+						"ch: %s: command not found\n",
+						*cmd);
+				} else {
+					perror("ch");
 				}
+				exit(EXIT_FAILURE);
 			}
 			exit(EXIT_SUCCESS);
 		} else {	// Parent
