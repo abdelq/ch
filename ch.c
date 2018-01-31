@@ -10,11 +10,15 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <limits.h>
+#include <regex.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
 
 #define MAX_ARGS 128
+
+regex_t var_regex;
+regex_t home_regex;
 
 int cd(char *path)
 {
@@ -25,10 +29,10 @@ int cd(char *path)
 }
 
 // TODO Possibly use flex/bison
-void parse(char **args, char **line)
+void parse(char **args, char **line, char *sep)
 {
 	char *arg;
-	while ((arg = strsep(line, " "))) {
+	while ((arg = strsep(line, sep))) {
 		if (*arg) {
 			if (arg[0] == '~') {
 				if (strlen(arg) == 1) {
@@ -39,7 +43,7 @@ void parse(char **args, char **line)
 				// TODO ~julius should be valid...
 			}
 			// TODO Regex maybe ?
-			if (arg[0] == '$' && strlen(arg) > 1) {
+		    if (!regexec(&var_regex, arg, 0, NULL, 0)){
 				arg = getenv(arg + 1);
 			}
 
@@ -55,15 +59,35 @@ int main(void)
 	char *cmd[MAX_ARGS];
 	pid_t pid;
 	int status;
+	regex_t ass_regex;
 
-	while ((line = readline("% "))) {
+	/* Match varname. Rules are:
+	 * - Begin with alphanumeric char or '_'
+	 * - No space around equal sign (Handled by string sep in parse func)
+	 * - Avoid Special char like "?"  or "*"
+	 */
+	if (regcomp(&var_regex, "\\$[a-zA-Z0-9_]*", 0)){
+		fprintf(stderr, "Could not compile regex\n");
+		exit(EXIT_FAILURE);
+	}
+	if (regcomp(&ass_regex, "^[a-zA-Z_]*=", 0)){
+		fprintf(stderr, "Could not compile regex\n");
+		exit(EXIT_FAILURE);
+	}
+	// Regex for special case ~julius
+	if (regcomp(&home_regex, "^~[^/].+", 0)){
+		fprintf(stderr, "Could not compile regex\n");
+		exit(EXIT_FAILURE);
+	}
+
+	while ((line = readline("abdshell% "))) {
 		if (!*line) {
 			continue;
 		}
 
 		add_history(line);
 
-		parse(cmd, &line);
+		parse(cmd, &line, " ");
 		if (!*cmd) {
 			continue;
 		}
@@ -76,15 +100,19 @@ int main(void)
 				fprintf(stderr, "twado: cd: too many arguments\n");	// XXX
 				continue;
 			}
-
 			if (cd(cmd[1]) == -1) {
-				perror("ch");	// TODO Bash-like error
+				perror("twado");	// TODO Bash-like error
 			}
+			continue;
+		} else if (!regexec(&ass_regex, cmd[0], 0, NULL, 0)){
+			char *assign[MAX_ARGS];
+			parse(assign,&cmd[0], "=");
+			setenv(assign[0], assign[1],1);
 			continue;
 		}
 
 		if ((pid = fork()) == -1) {
-			perror("ch");
+			perror("twado");
 			exit(EXIT_FAILURE);
 		}
 		// TODO Move to another function
