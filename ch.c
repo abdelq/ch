@@ -52,12 +52,16 @@ bool env_assign(char **args)
 	return true;
 }
 
-// TODO Allow usage of cd -
+// FIXME crashes if OLDPWD has a symlink to folders
 int cd(char *path)
 {
-	if (!path) {
+    setenv("OLDPWD",getenv("PWD"),1);	//TODO return exit_code
+    if (!path) {
 		return chdir(getenv("HOME"));
 	}
+    if (strcmp(path,"-") == 0){
+        return chdir(getenv("$OLDPWD"));
+    }
 	return chdir(path);
 }
 
