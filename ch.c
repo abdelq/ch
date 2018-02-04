@@ -52,16 +52,20 @@ bool env_assign(char **args)
 	return true;
 }
 
-// FIXME crashes if OLDPWD has a symlink to folders
 int cd(char *path)
 {
-    setenv("OLDPWD",getenv("PWD"),1);	//TODO return exit_code
     if (!path) {
+        setenv("PWD",getenv("HOME"),1);
 		return chdir(getenv("HOME"));
-	}
-    if (strcmp(path,"-") == 0){
-        return chdir(getenv("$OLDPWD"));
     }
+    if (strcmp(path,"-") == 0){
+        setenv("PWD",getenv("OLDPWD"),1);
+        puts(getenv("PWD"));
+        return chdir(getenv("OLDPWD"));
+    }
+    char realpath_buf[PATH_MAX];
+    char *realpath_ptr = realpath(path,realpath_buf);
+    setenv("PWD",realpath_ptr,1);
 	return chdir(path);
 }
 
@@ -120,6 +124,7 @@ int main(void)
 		if (strcmp(cmd[0], "exit") == 0) {
 			exit(EXIT_SUCCESS);
 		} else if (strcmp(cmd[0], "cd") == 0) {
+            char *pwd = getenv("PWD");
 			if (cmd[2]) {
 				fprintf(stderr,
 					"twado: cd: too many arguments\n");
@@ -130,6 +135,11 @@ int main(void)
 				fprintf(stderr, "twado: cd: %s: %s\n",
 					cmd[1], strerror(errno));
 			}
+
+			if(setenv("OLDPWD",pwd,1) == -1){
+				fprintf(stderr,"Error updating OLDPWD");
+			}
+
 			continue;
 		}
 
