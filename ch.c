@@ -43,6 +43,7 @@ void compile_regex()
 	}
 }
 
+// TODO Allow usage of cd -
 int cd(char *path)
 {
 	if (!path) {
@@ -116,14 +117,16 @@ int main(void)
 			}
 			continue;
 		}
-		// FIXME
+
 		/* Environment variables */
-		/*if (!regexec(&ass_regex, cmd[0], 0, NULL, 0)) {
-		   char *assign[MAX_ARGS];
-		   parse(assign, &cmd[0], "=");
-		   setenv(assign[0], assign[1], 1);
-		   continue;
-		   } */
+		// TODO Allow multiple assignments if not suffixed by a command
+		// (i.e. if all elements of array match regex until you hit NULL)
+		if (regexec(&ass_regex, cmd[0], 0, NULL, 0) == 0) {
+			if (putenv(cmd[0]) != 0) {
+				perror("twado");
+			}
+			continue;
+		}
 
 		if ((pid = fork()) == -1) {
 			perror("twado");
