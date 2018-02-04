@@ -1,24 +1,47 @@
-/*
+/**
  * Auteurs : Abdelhakim Qbaich, Rémi Langevin
  * Date : 2018-02-10
  * Problèmes connus : S.O.
  */
 
+#include <errno.h>
+#include <limits.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
-#include <sys/wait.h>
-#include <limits.h>
-#include <regex.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <sys/wait.h>
 
-#define MAX_ARGS 128
+regex_t envvar;			// FIXME Rename
+regex_t ass_regex;		// FIXME Rename
 
-regex_t var_regex;
-regex_t home_regex;
+char *get_regerror(int errcode, regex_t * preg)
+{
+	size_t len = regerror(errcode, preg, NULL, 0);
+	char *buf = malloc(len);	// XXX Verify
+	regerror(errcode, preg, buf, len);
+	return buf;
+}
+
+void compile_regex()
+{
+	int errcode;
+
+	// TODO Use REG_NOSUB if possible
+	if ((errcode = regcomp(&envvar, "\\$\\w+", REG_EXTENDED))) {
+		fprintf(stderr, "%s\n", get_regerror(errcode, &envvar));	// XXX Test
+		exit(EXIT_FAILURE);
+	}
+	// TODO Verify that REG_EXTENDED is needed
+	// TODO Use REG_NOSUB if possible
+	if ((errcode = regcomp(&ass_regex, "^\\w+=", REG_EXTENDED))) {
+		fprintf(stderr, "%s\n", get_regerror(errcode, &ass_regex));	// XXX Test
+		exit(EXIT_FAILURE);
+	}
+}
 
 int cd(char *path)
 {
@@ -28,7 +51,6 @@ int cd(char *path)
 	return chdir(path);
 }
 
-// TODO Possibly use flex/bison
 void parse(char **args, char **line, char *sep)
 {
 	char *arg;
@@ -42,8 +64,10 @@ void parse(char **args, char **line, char *sep)
 				// TODO ~/Workspace/ should be valid
 				// TODO ~julius should be valid...
 			}
-			// TODO Regex maybe ?
-		    if (!regexec(&var_regex, arg, 0, NULL, 0)){
+			// XXX echo $HOME- /home/julius-
+			// TODO What if echo $ ?
+			// TODO What if echo $HOME$HOME
+			if (!regexec(&envvar, arg, 0, NULL, 0)) {	// TODO Regex maybe ?
 				arg = getenv(arg + 1);
 			}
 
@@ -51,71 +75,60 @@ void parse(char **args, char **line, char *sep)
 		}
 	}
 	*args = NULL;
+	// XXX strsep memory clean ?
+	// XXX Possibly add env data directly to arg after the null pointer
+	// XXX POSIX MAX ARG says Maximum length of argument to the exec functions including environment data.
 }
 
 int main(void)
 {
 	char *line;
-	char *cmd[MAX_ARGS];
+	char *cmd[_POSIX_ARG_MAX];
 	pid_t pid;
 	int status;
-	regex_t ass_regex;
 
-	/* Match varname. Rules are:
-	 * - Begin with alphanumeric char or '_'
-	 * - No space around equal sign (Handled by string sep in parse func)
-	 * - Avoid Special char like "?"  or "*"
-	 */
-	if (regcomp(&var_regex, "\\$[a-zA-Z0-9_]*", 0)){
-		fprintf(stderr, "Could not compile regex\n");
-		exit(EXIT_FAILURE);
-	}
-	if (regcomp(&ass_regex, "^[a-zA-Z_]*=", 0)){
-		fprintf(stderr, "Could not compile regex\n");
-		exit(EXIT_FAILURE);
-	}
-	// Regex for special case ~julius
-	if (regcomp(&home_regex, "^~[^/].+", 0)){
-		fprintf(stderr, "Could not compile regex\n");
-		exit(EXIT_FAILURE);
-	}
+	compile_regex();
 
-	while ((line = readline("abdshell% "))) {
+	while ((line = readline("% "))) {
 		if (!*line) {
 			continue;
 		}
-
 		add_history(line);
 
 		parse(cmd, &line, " ");
 		if (!*cmd) {
 			continue;
 		}
-		// Builtin Commands
+
+		/* Built-in commands */
 		if (strcmp(cmd[0], "exit") == 0) {
 			exit(EXIT_SUCCESS);
 		} else if (strcmp(cmd[0], "cd") == 0) {
-			// Too many arguments
 			if (cmd[2]) {
-				fprintf(stderr, "twado: cd: too many arguments\n");	// XXX
+				fprintf(stderr,
+					"twado: cd: too many arguments\n");
 				continue;
 			}
+
 			if (cd(cmd[1]) == -1) {
 				perror("twado");	// TODO Bash-like error
 			}
 			continue;
-		} else if (!regexec(&ass_regex, cmd[0], 0, NULL, 0)){
-			char *assign[MAX_ARGS];
-			parse(assign,&cmd[0], "=");
-			setenv(assign[0], assign[1],1);
-			continue;
 		}
+		// FIXME
+		/* Environment variables */
+		/*if (!regexec(&ass_regex, cmd[0], 0, NULL, 0)) {
+		   char *assign[MAX_ARGS];
+		   parse(assign, &cmd[0], "=");
+		   setenv(assign[0], assign[1], 1);
+		   continue;
+		   } */
 
 		if ((pid = fork()) == -1) {
 			perror("twado");
 			exit(EXIT_FAILURE);
 		}
-		// TODO Move to another function
+
 		if (pid == 0) {	// Child
 			// TODO Use execve and then use new array for env variables
 			if (execvp(*cmd, cmd) == -1) {
@@ -130,11 +143,11 @@ int main(void)
 			}
 			exit(EXIT_SUCCESS);
 		} else {	// Parent
-			// TODO do while ?
-			// TODO Integrate content from waitpid(2)
+			// TODO Integrate content from waitpid(2) (do while?)
 			waitpid(pid, &status, WUNTRACED);
+			// TODO && || WEXITSTATUS(status)
 		}
-
-		free(line);
 	}
+
+	// XXX Free allocated memory? line, *_regex, etc.
 }
