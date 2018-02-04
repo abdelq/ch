@@ -78,31 +78,23 @@ void parse(char **args, char **line, char *sep)
 	char *arg;
 	while ((arg = strsep(line, sep))) {
 		if (*arg) {
+			// TODO Manage ~
 			if (arg[0] == '~') {
 				if (strlen(arg) == 1) {
 					arg = getenv("HOME");
 				}
-				// TODO no such user or named directory si username en plus ?
-				// TODO ~/Workspace/ should be valid
-				// TODO ~julius should be valid...
 			}
-			// XXX echo $HOME- /home/julius-
-			// TODO What if echo $ ?
-			// TODO What if echo $HOME$HOME
-			// TODO echo miaw$miaw
-			// TODO Review https://gitlab.com/prenux/super_duper_shell/blob/remi2/ch.c
-			if (!regexec(&envvar, arg, 0, NULL, 0)) {	// TODO Regex maybe ?
-				arg = getenv(arg + 1);
+			// TODO Multiple variables
+			if (!regexec(&envvar, arg, 0, NULL, 0)) {
+				if (!(arg = getenv(arg + 1))) {
+					continue;
+				}
 			}
 
 			*args++ = arg;
 		}
 	}
 	*args = NULL;
-	// XXX strsep memory clean ?
-	// XXX Possibly add env data directly to arg after the null pointer
-	// XXX POSIX MAX ARG says Maximum length of argument to the exec functions including environment data.
-	// XXX If I do something like env NULL cmd NULL it might cause issues
 }
 
 int main(void)
