@@ -22,7 +22,7 @@ regex_t ass_regex;		// FIXME Rename
 char *get_regerror(int errcode, regex_t * preg)
 {
 	size_t len = regerror(errcode, preg, NULL, 0);
-	char *buf = malloc(len);	// XXX Verify
+	char *buf = malloc(len);	// XXX Verify for error
 	regerror(errcode, preg, buf, len);
 	return buf;
 }
@@ -89,6 +89,7 @@ void parse(char **args, char **line, char *sep)
 			// XXX echo $HOME- /home/julius-
 			// TODO What if echo $ ?
 			// TODO What if echo $HOME$HOME
+			// TODO echo miaw$miaw
 			// TODO Review https://gitlab.com/prenux/super_duper_shell/blob/remi2/ch.c
 			if (!regexec(&envvar, arg, 0, NULL, 0)) {	// TODO Regex maybe ?
 				arg = getenv(arg + 1);
@@ -101,24 +102,25 @@ void parse(char **args, char **line, char *sep)
 	// XXX strsep memory clean ?
 	// XXX Possibly add env data directly to arg after the null pointer
 	// XXX POSIX MAX ARG says Maximum length of argument to the exec functions including environment data.
+	// XXX If I do something like env NULL cmd NULL it might cause issues
 }
 
 int main(void)
 {
-	char *line;
-	char *cmd[_POSIX_ARG_MAX];
-	pid_t pid;
-	int status;
+	char *line, *cmd[_POSIX_ARG_MAX];
+	pid_t cpid, w;
+	int wstatus;
 
 	compile_regex();
 
 	while ((line = readline("% "))) {
 		if (!*line) {
+			free(line);
 			continue;
 		}
 		add_history(line);
 
-		parse(cmd, &line, " ");
+		parse(cmd, &line, " ");	// XXX free(line)
 		if (!*cmd) {
 			continue;
 		}
@@ -155,19 +157,18 @@ int main(void)
 			for (int i = 0; cmd[i] != NULL; i++) {
 				if (putenv(cmd[i]) != 0) {
 					perror("twado");
-					break;
+					break;	// XXX
 				}
 			}
 			continue;
 		}
 
-		if ((pid = fork()) == -1) {
+		if ((cpid = fork()) == -1) {
 			perror("twado");
 			exit(EXIT_FAILURE);
 		}
 
-		if (pid == 0) {	// Child
-			// TODO Use execve and then use new array for env variables
+		if (cpid == 0) {	/* Child */
 			if (execvp(*cmd, cmd) == -1) {
 				if (errno == ENOENT) {
 					fprintf(stderr,
@@ -179,12 +180,15 @@ int main(void)
 				exit(EXIT_FAILURE);
 			}
 			exit(EXIT_SUCCESS);
-		} else {	// Parent
-			// TODO Integrate content from waitpid(2) (do while?)
-			waitpid(pid, &status, WUNTRACED);
-			// TODO && || WEXITSTATUS(status)
+		} else {	/* Parent */
+			do {
+				w = waitpid(cpid, &wstatus,
+					    WUNTRACED | WCONTINUED);
+				if (w == -1) {
+					perror("twado");
+					exit(EXIT_FAILURE);
+				}
+			} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
 		}
 	}
-
-	// XXX Free allocated memory? line, *_regex, etc.
 }
