@@ -65,8 +65,11 @@ int cd(char *path)
     }
     char realpath_buf[PATH_MAX];
     char *realpath_ptr = realpath(path,realpath_buf);
-    setenv("PWD",realpath_ptr,1);
-	return chdir(path);
+    if(access(realpath_ptr,F_OK) == 0){
+		setenv("PWD",realpath_ptr,1);
+		return chdir(path);
+    }
+	return -1;
 }
 
 // FIXME Needs thorough review
@@ -124,7 +127,8 @@ int main(void)
 		if (strcmp(cmd[0], "exit") == 0) {
 			exit(EXIT_SUCCESS);
 		} else if (strcmp(cmd[0], "cd") == 0) {
-            char *pwd = getenv("PWD");
+			char *pwd = getenv("PWD");
+
 			if (cmd[2]) {
 				fprintf(stderr,
 					"twado: cd: too many arguments\n");
@@ -132,12 +136,15 @@ int main(void)
 			}
 
 			if (cd(cmd[1]) == -1) {
+				setenv("PWD",pwd,1);
 				fprintf(stderr, "twado: cd: %s: %s\n",
 					cmd[1], strerror(errno));
+				continue;
 			}
 
 			if(setenv("OLDPWD",pwd,1) == -1){
-				fprintf(stderr,"Error updating OLDPWD");
+				fprintf(stderr,"twado: cd: Error updating OLDPWD");
+				continue;
 			}
 
 			continue;
