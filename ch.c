@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <regex.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -35,12 +36,20 @@ void compile_regex()
 		fprintf(stderr, "%s\n", get_regerror(errcode, &envvar));	// XXX Test
 		exit(EXIT_FAILURE);
 	}
-	// TODO Verify that REG_EXTENDED is needed
-	// TODO Use REG_NOSUB if possible
-	if ((errcode = regcomp(&ass_regex, "^\\w+=", REG_EXTENDED))) {
+	if ((errcode = regcomp(&ass_regex, "^\\w+=", REG_EXTENDED | REG_NOSUB))) {
 		fprintf(stderr, "%s\n", get_regerror(errcode, &ass_regex));	// XXX Test
 		exit(EXIT_FAILURE);
 	}
+}
+
+bool env_assign(char **args)
+{
+	for (int i = 0; args[i] != NULL; i++) {
+		if (regexec(&ass_regex, args[i], 0, NULL, 0) == REG_NOMATCH) {
+			return false;
+		}
+	}
+	return true;
 }
 
 // TODO Allow usage of cd -
@@ -52,6 +61,7 @@ int cd(char *path)
 	return chdir(path);
 }
 
+// FIXME Needs thorough review
 void parse(char **args, char **line, char *sep)
 {
 	char *arg;
@@ -68,6 +78,7 @@ void parse(char **args, char **line, char *sep)
 			// XXX echo $HOME- /home/julius-
 			// TODO What if echo $ ?
 			// TODO What if echo $HOME$HOME
+			// TODO Review https://gitlab.com/prenux/super_duper_shell/blob/remi2/ch.c
 			if (!regexec(&envvar, arg, 0, NULL, 0)) {	// TODO Regex maybe ?
 				arg = getenv(arg + 1);
 			}
@@ -119,11 +130,12 @@ int main(void)
 		}
 
 		/* Environment variables */
-		// TODO Allow multiple assignments if not suffixed by a command
-		// (i.e. if all elements of array match regex until you hit NULL)
-		if (regexec(&ass_regex, cmd[0], 0, NULL, 0) == 0) {
-			if (putenv(cmd[0]) != 0) {
-				perror("twado");
+		if (env_assign(cmd)) {
+			for (int i = 0; cmd[i] != NULL; i++) {
+				if (putenv(cmd[i]) != 0) {
+					perror("twado");
+					break;
+				}
 			}
 			continue;
 		}
