@@ -111,7 +111,8 @@ int main(void)
 			}
 
 			if (cd(cmd[1]) == -1) {
-				perror("twado");	// TODO Bash-like error
+				fprintf(stderr, "twado: cd: %s: %s\n",
+					cmd[1], strerror(errno));
 			}
 			continue;
 		}
