@@ -61,7 +61,6 @@ int cd(char *path)
 	return chdir(path);
 }
 
-// FIXME Needs thorough review
 void parse(char **args, char **line, char *sep)
 {
 	char *arg;
@@ -86,11 +85,47 @@ void parse(char **args, char **line, char *sep)
 	*args = NULL;
 }
 
+// TODO exit or return ?
+int execute(char **cmd)
+{
+	pid_t cpid, w;
+	int wstatus;
+
+	if ((cpid = fork()) == -1) {
+		perror("twado");
+		exit(EXIT_FAILURE);
+	}
+
+	if (cpid == 0) {	/* Child */
+		if (execvp(*cmd, cmd) == -1) {
+			if (errno == ENOENT) {
+				fprintf(stderr,
+					"twado: %s: command not found\n", *cmd);
+			} else {
+				perror("twado");
+			}
+			exit(EXIT_FAILURE);
+		}
+		exit(EXIT_SUCCESS);
+	} else {		/* Parent. See : man 2 waitpid */
+		do {
+			w = waitpid(cpid, &wstatus, WUNTRACED | WCONTINUED);
+			if (w == -1) {
+				perror("twado");
+				exit(EXIT_FAILURE);
+			}
+
+			if (WIFEXITED(wstatus)) {
+				return WEXITSTATUS(wstatus);
+			}
+		} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
+	}
+	return -1;		// XXX
+}
+
 int main(void)
 {
 	char *line, *cmd[_POSIX_ARG_MAX];
-	pid_t cpid, w;
-	int wstatus;
 
 	compile_regex();
 
@@ -134,32 +169,8 @@ int main(void)
 			continue;
 		}
 
-		if ((cpid = fork()) == -1) {
-			perror("twado");
-			exit(EXIT_FAILURE);
-		}
-
-		if (cpid == 0) {	/* Child */
-			if (execvp(*cmd, cmd) == -1) {
-				if (errno == ENOENT) {
-					fprintf(stderr,
-						"twado: %s: command not found\n",
-						*cmd);
-				} else {
-					perror("twado");
-				}
-				exit(EXIT_FAILURE);
-			}
-			exit(EXIT_SUCCESS);
-		} else {	/* Parent */
-			do {
-				w = waitpid(cpid, &wstatus,
-					    WUNTRACED | WCONTINUED);
-				if (w == -1) {
-					perror("twado");
-					exit(EXIT_FAILURE);
-				}
-			} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
+		if (execute(cmd) == 0) {
+			//puts("Success");
 		}
 	}
 }
