@@ -129,7 +129,7 @@ int main(void)
 
 	compile_regex();
 
- main:	while ((line = readline("% "))) {
+	while ((line = readline("% "))) {
 		if (!*line) {
 			free(line);
 			continue;
@@ -168,24 +168,28 @@ int main(void)
 			}
 			continue;
 		}
-
-		// FIXME Better code
+		// TODO Could be improved
 		int j = 0;
 		for (int i = 0; cmd[i] != NULL; i++) {
 			if (strcmp(cmd[i], "||") == 0) {
 				cmd[i] = NULL;
 				if (execute(&cmd[j]) == 0) {
-					goto main;
+					j = -1;
+					break;
 				}
 				j = i + 1;
 			} else if (strcmp(cmd[i], "&&") == 0) {
 				cmd[i] = NULL;
 				if (execute(&cmd[j]) != 0) {
-					goto main;
+					j = -1;
+					break;
 				}
 				j = i + 1;
 			}
 		}
-		execute(&cmd[j]);
+
+		if (j != -1) {
+			execute(&cmd[j]);
+		}
 	}
 }
