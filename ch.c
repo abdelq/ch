@@ -61,9 +61,21 @@ int cd(char *path)
 	return chdir(path);
 }
 
+void substitute(char **args)
+{
+	for (int i = 0; args[i] != NULL; i++) {
+		// TODO Multiple variables
+		if (!regexec(&envvar, args[i], 0, NULL, 0)) {
+			args[i] = getenv(args[i] + 1);
+		}
+	}
+}
+
 void parse(char **args, char **line, char *sep)
 {
 	char *arg;
+	char **args_KEEP_ME_ALIVE_PLEASE = args;
+
 	while ((arg = strsep(line, sep))) {
 		if (*arg) {
 			// TODO Manage ~
@@ -72,17 +84,15 @@ void parse(char **args, char **line, char *sep)
 					arg = getenv("HOME");
 				}
 			}
-			// TODO Multiple variables
-			if (!regexec(&envvar, arg, 0, NULL, 0)) {
-				if (!(arg = getenv(arg + 1))) {
-					continue;
-				}
-			}
-
 			*args++ = arg;
 		}
 	}
 	*args = NULL;
+	if (args_KEEP_ME_ALIVE_PLEASE[0]) {
+		if (strcmp(args_KEEP_ME_ALIVE_PLEASE[0], "for") != 0) {
+			substitute(args_KEEP_ME_ALIVE_PLEASE);
+		}
+	}
 }
 
 // TODO exit or return ?
@@ -120,7 +130,7 @@ int execute(char **cmd)
 			}
 		} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
 	}
-	return -1;		// XXX
+	return EXIT_FAILURE;		// XXX
 }
 
 int main(void)
