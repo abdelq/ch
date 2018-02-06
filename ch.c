@@ -61,7 +61,7 @@ int cd(char *path)
 	return chdir(path);
 }
 
-void substitute(char **args)
+void expand(char **args)
 {
 	for (int i = 0; args[i] != NULL; i++) {
 		// TODO Multiple variables
@@ -74,7 +74,7 @@ void substitute(char **args)
 void parse(char **args, char **line, char *sep)
 {
 	char *arg;
-	char **args_KEEP_ME_ALIVE_PLEASE = args;
+	char **firstarg = args;
 
 	while ((arg = strsep(line, sep))) {
 		if (*arg) {
@@ -88,10 +88,10 @@ void parse(char **args, char **line, char *sep)
 		}
 	}
 	*args = NULL;
-	if (args_KEEP_ME_ALIVE_PLEASE[0]) {
-		if (strcmp(args_KEEP_ME_ALIVE_PLEASE[0], "for") != 0) {
-			substitute(args_KEEP_ME_ALIVE_PLEASE);
-		}
+
+	// TODO Be able to skip env variables that don't exist
+	if (firstarg && strcmp(*firstarg, "for") != 0) {	// XXX
+		expand(firstarg);
 	}
 }
 
@@ -130,7 +130,7 @@ int execute(char **cmd)
 			}
 		} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
 	}
-	return EXIT_FAILURE;		// XXX
+	return EXIT_FAILURE;	// XXX
 }
 
 int main(void)
