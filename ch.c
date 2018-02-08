@@ -19,6 +19,12 @@
 regex_t envvar;			// FIXME Rename
 regex_t ass_regex;		// FIXME Rename
 
+struct for_loop {
+	char *iter_var;
+	char **iter_values;
+	char **body;
+};
+
 char *get_regerror(int errcode, regex_t * preg)
 {
 	size_t len = regerror(errcode, preg, NULL, 0);
@@ -66,7 +72,7 @@ void expand(char **args)
 	for (int i = 0; args[i] != NULL; i++) {
 		// TODO Multiple variables
 		if (!regexec(&envvar, args[i], 0, NULL, 0)) {
-			args[i] = getenv(args[i] + 1);
+			if(!(args[i] = getenv(args[i] + 1))) args[i] = "";
 		}
 	}
 }
@@ -88,14 +94,13 @@ void parse(char **args, char **line, char *sep)
 		}
 	}
 	*args = NULL;
-
-	// TODO Be able to skip env variables that don't exist
 	if (firstarg && strcmp(*firstarg, "for") != 0) {	// XXX
 		expand(firstarg);
 	}
 }
 
 // TODO exit or return ?
+// TODO Add ";" support
 int execute(char **cmd)
 {
 	pid_t cpid, w;
@@ -124,13 +129,77 @@ int execute(char **cmd)
 				perror("twado");
 				exit(EXIT_FAILURE);
 			}
-
 			if (WIFEXITED(wstatus)) {
 				return WEXITSTATUS(wstatus);
 			}
 		} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
 	}
 	return EXIT_FAILURE;	// XXX
+}
+
+void clear(char *cmd[]){
+    for(int i = 0; i < _POSIX_ARG_MAX; i++){
+        cmd[i] = NULL;
+    }
+}
+
+// for i in 1 2 3 ; do echo bonjour $i ; echo allo $i ; done
+int for_me(char **cmd)
+{
+	struct for_loop f;
+	f.iter_var = cmd[1];
+	if (strcmp(cmd[2], "in") != 0) {
+		fprintf(stderr,
+			"twaaadooo!!: Malformed for loop: missing 'in' statement");
+		return EXIT_FAILURE;
+	}
+	//saves beginning of range
+	f.iter_values = cmd + 3;
+	char **body = f.body;
+	// seek until end of range marked by ";"
+	int i = 3;
+	while (strcmp(cmd[i], ";") != 0)
+		i++;
+	if (i == 3) {
+		fprintf(stderr,
+			"twaaadooo!!: Malformed for loop: missing a range");
+		return EXIT_FAILURE;
+	}
+	i++;
+	if (strcmp(cmd[i], "do") != 0) {
+		fprintf(stderr,
+			"twaaadooo!!: Malformed for loop: missing 'do' statement");
+		return EXIT_FAILURE;
+	}
+	// saves beginning of for body
+	f.body = cmd + ++i;
+	while (strcmp(cmd[i], "done") != 0) {
+		i++;
+		// ARG_MAX * A maximum of inner command
+		if (i > _POSIX_ARG_MAX * 512) {
+			fprintf(stderr,
+				"twaaadooo!!: Malformed for loop: missing 'done' statement or body too long");
+			return EXIT_FAILURE;
+		}
+	}
+	// iterate over range
+	for (int j = 0; strcmp(f.iter_values[j], ";"); j++) {
+		setenv(f.iter_var, f.iter_values[j], 1);
+		// iterate over cmds
+        for(int k = 0; strcmp(f.body[k],"done") != 0;k++){
+			char *comm[_POSIX_ARG_MAX];
+            int c = 0;
+			for (k=k;strcmp(f.body[k], ";"); k++) {
+	            if(k > _POSIX_ARG_MAX -2) break;
+				comm[c++] = strdup(f.body[k]);
+			}
+			expand(comm);
+			execute(comm);
+            // ARE YOU FUNKIER DEAR ABDEL?
+            clear(comm);
+        }
+	}
+	return EXIT_SUCCESS;
 }
 
 int main(void)
@@ -165,6 +234,9 @@ int main(void)
 				fprintf(stderr, "twado: cd: %s: %s\n",
 					cmd[1], strerror(errno));
 			}
+			continue;
+		} else if (strcmp(cmd[0], "for") == 0) {
+			for_me(cmd);
 			continue;
 		}
 
