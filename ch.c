@@ -1,7 +1,10 @@
 /**
  * Auteurs : Abdelhakim Qbaich, Rémi Langevin
- * Date : 2018-02-10
- * Problèmes connus : S.O.
+ * Date : 2018-02-11
+ * Problèmes connus :
+ *      - Fuite de mémoire dans la fonction expand
+ *      - Retour d'un string vide plutôt que de sauter une variable d'env.
+ *      inexistante (e.g. echo $HOME $COCOLAPIN $HOME)
  */
 
 #include <errno.h>
@@ -69,14 +72,28 @@ int cd(char *path)
 
 void expand(char **args)
 {
-	// TODO KEK=$HOME should technically work
-	// FIXME echo Command: $MAN:$VERSION:$LS
+	regmatch_t pmatch[1];
+
 	for (int i = 0; args[i] != NULL; i++) {
-		// TODO Multiple variables
-		if (regexec(&envget, args[i], 0, NULL, 0) == 0) {
-			if (!(args[i] = getenv(args[i] + 1))) {
-				args[i] = "";	// TODO Add to problèmes connus
-			}
+		// FIXME VERSION=--version
+		// FIXME echo $VERSION
+		while (regexec(&envget, args[i], 1, pmatch, 0) == 0) {
+			// Copy $ENV substring
+			int len = pmatch->rm_eo - pmatch->rm_so;
+			char substr[len];
+			strncpy(substr, args[i] + pmatch->rm_so, len);
+			substr[len] = '\0';
+
+			char *env = getenv(substr + 1);
+			if (env == NULL)
+				env = "";
+
+			char *arg = malloc(pmatch->rm_so + 1 + strlen(env) + 1 + strlen(args[i] + pmatch->rm_so + len) + 1);	// XXX
+			strncpy(arg, args[i], pmatch->rm_so);
+			arg[pmatch->rm_so] = '\0';	// XXX
+			strcat(arg, env);
+			strcat(arg, args[i] + pmatch->rm_so + len);
+			args[i] = arg;
 		}
 	}
 }
@@ -98,7 +115,6 @@ void parse(char **args, char **line, char *sep)
 	*args = NULL;
 }
 
-// XXX exit or return
 int execute(char **cmd)
 {
 	pid_t cpid, w;
@@ -201,6 +217,11 @@ int execute(char **cmd)
 	return EXIT_SUCCESS;
 }*/
 
+void loop(char **cmd)
+{
+	puts(*cmd);
+}
+
 int main(void)
 {
 	char *line, *cmd[_POSIX_ARG_MAX];
@@ -237,7 +258,7 @@ int main(void)
 			}
 			continue;
 		} else if (strcmp(cmd[0], "for") == 0) {
-			// FIXME For loop
+			loop(cmd);
 			continue;
 		}
 
@@ -254,7 +275,7 @@ int main(void)
 		}
 
 		/* Execution */
-		// XXX Clean up
+		// TODO Clean up
 		int j = 0;
 		for (int i = 0; cmd[i] != NULL; i++) {
 			if (strcmp(cmd[i], ";") == 0) {
