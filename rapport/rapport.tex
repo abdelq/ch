@@ -1,0 +1,42 @@
+\documentclass[a4paper]{article}
+
+\usepackage[utf8]{inputenc} % pour les accents UTF-8
+\usepackage{ragged2e}       % justify paragraphs
+\usepackage[margin=0.9in]{geometry}
+\usepackage{listings}
+
+\title{Travail pratique \#1 -- IFT-2245}
+\author{Abdelhakim Qbaich & Rémi Langevin}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{Probl\`emes rencontr\'e}
+    \subsection*{G\'erer les assignements de variables multiples}
+    \subsection*{Boucle "for"}
+    \subsection*{"cd -"}
+    \subsection*{Fuites de m\'emoire dans "expand"}
+
+\section*{Surprises}
+    \subsection*{Abdel}
+
+\section*{Choix}
+    \subsection*{Variables d'environnement non-existante}
+    Lorsque que le shell a une requ\^ete pour retrouver une variable
+    d'environnement qui n'existe pas, nous retournons une string vide plut\^ot
+    que de l'ignorer
+        \begin{lstlisting}[language=bash]
+        echo $HOME $MIAW $HOME
+        \end{lstlisting}
+
+\section*{Options rejet\'ees}
+    Nous n'avons pas particuli\`erement rejet\'e d'options, \`a
+    l'exception d'options avanc\'ees (e.g. completion/suggestion, pipe, etc.)
+
+\section*{Ajouts}
+    \subsection*{Bindings emacs et historique}
+        Avec la libraire readline, nous avons pu facilement avoir les bindings
+        emacs et g\'erer l'historique de la session. De plus, cela permet de
+        d\'eplacer le curseur sur la ligne de commande.
+\end{document}

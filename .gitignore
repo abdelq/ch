@@ -1,4 +1,9 @@
 ch
 *.out
-
 *.c~
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.pyg
+*.synctex.gz
