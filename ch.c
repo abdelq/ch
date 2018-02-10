@@ -7,7 +7,6 @@
 #include <errno.h>
 #include <limits.h>
 #include <regex.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -16,19 +15,22 @@
 #include <readline/history.h>
 #include <sys/wait.h>
 
-regex_t envvar;			// FIXME Rename
-regex_t ass_regex;		// FIXME Rename
+regex_t envget;			// Regex for getting an env. variable (e.g. $FOO)
+regex_t envset;			// Regex for setting an env. variable (e.g. FOO=bar)
 
-struct for_loop {
-	char *iter_var;
-	char **iter_values;
+typedef struct {
+	char *var;
+	char **values;
 	char **body;
-};
+} for_loop;
 
 char *get_regerror(int errcode, regex_t * preg)
 {
 	size_t len = regerror(errcode, preg, NULL, 0);
-	char *buf = malloc(len);	// XXX Verify for error
+	char *buf = malloc(len);
+	if (buf == NULL) {
+		return strerror(errno);
+	}
 	regerror(errcode, preg, buf, len);
 	return buf;
 }
@@ -37,28 +39,26 @@ void compile_regex()
 {
 	int errcode;
 
-	// TODO Use REG_NOSUB if possible
-	if ((errcode = regcomp(&envvar, "\\$\\w+", REG_EXTENDED))) {
-		fprintf(stderr, "%s\n", get_regerror(errcode, &envvar));	// XXX Test
+	if ((errcode = regcomp(&envget, "\\$\\w+", REG_EXTENDED))) {
+		fprintf(stderr, "%s\n", get_regerror(errcode, &envget));
 		exit(EXIT_FAILURE);
 	}
-	if ((errcode = regcomp(&ass_regex, "^\\w+=", REG_EXTENDED | REG_NOSUB))) {
-		fprintf(stderr, "%s\n", get_regerror(errcode, &ass_regex));	// XXX Test
+	if ((errcode = regcomp(&envset, "^\\w+=", REG_EXTENDED | REG_NOSUB))) {
+		fprintf(stderr, "%s\n", get_regerror(errcode, &envset));
 		exit(EXIT_FAILURE);
 	}
 }
 
-bool env_assign(char **args)
+int env_assign(char **args)
 {
 	for (int i = 0; args[i] != NULL; i++) {
-		if (regexec(&ass_regex, args[i], 0, NULL, 0) == REG_NOMATCH) {
-			return false;
+		if (regexec(&envset, args[i], 0, NULL, 0) == REG_NOMATCH) {
+			return 0;
 		}
 	}
-	return true;
+	return 1;
 }
 
-// TODO Allow usage of cd -
 int cd(char *path)
 {
 	if (!path) {
@@ -69,10 +69,14 @@ int cd(char *path)
 
 void expand(char **args)
 {
+	// TODO KEK=$HOME should technically work
+	// FIXME echo Command: $MAN:$VERSION:$LS
 	for (int i = 0; args[i] != NULL; i++) {
 		// TODO Multiple variables
-		if (!regexec(&envvar, args[i], 0, NULL, 0)) {
-			if(!(args[i] = getenv(args[i] + 1))) args[i] = "";
+		if (regexec(&envget, args[i], 0, NULL, 0) == 0) {
+			if (!(args[i] = getenv(args[i] + 1))) {
+				args[i] = "";	// TODO Add to problèmes connus
+			}
 		}
 	}
 }
@@ -80,8 +84,6 @@ void expand(char **args)
 void parse(char **args, char **line, char *sep)
 {
 	char *arg;
-	char **firstarg = args;
-
 	while ((arg = strsep(line, sep))) {
 		if (*arg) {
 			// TODO Manage ~
@@ -94,13 +96,9 @@ void parse(char **args, char **line, char *sep)
 		}
 	}
 	*args = NULL;
-	if (firstarg && strcmp(*firstarg, "for") != 0) {	// XXX
-		expand(firstarg);
-	}
 }
 
-// TODO exit or return ?
-// TODO Add ";" support
+// XXX exit or return
 int execute(char **cmd)
 {
 	pid_t cpid, w;
@@ -137,14 +135,14 @@ int execute(char **cmd)
 	return EXIT_FAILURE;	// XXX
 }
 
-void clear(char *cmd[]){
-    for(int i = 0; i < _POSIX_ARG_MAX; i++){
-        cmd[i] = NULL;
-    }
-}
+/*void clear(char *cmd[])
+{
+	for (int i = 0; i < _POSIX_ARG_MAX; i++) {
+		cmd[i] = NULL;
+	}
+}*/
 
-// for i in 1 2 3 ; do echo bonjour $i ; echo allo $i ; done
-int for_me(char **cmd)
+/*int for_me(char **cmd)
 {
 	struct for_loop f;
 	f.iter_var = cmd[1];
@@ -186,21 +184,22 @@ int for_me(char **cmd)
 	for (int j = 0; strcmp(f.iter_values[j], ";"); j++) {
 		setenv(f.iter_var, f.iter_values[j], 1);
 		// iterate over cmds
-        for(int k = 0; strcmp(f.body[k],"done") != 0;k++){
+		for (int k = 0; strcmp(f.body[k], "done") != 0; k++) {
 			char *comm[_POSIX_ARG_MAX];
-            int c = 0;
-			for (k=k;strcmp(f.body[k], ";"); k++) {
-	            if(k > _POSIX_ARG_MAX -2) break;
+			int c = 0;
+			for (k = k; strcmp(f.body[k], ";"); k++) {
+				if (k > _POSIX_ARG_MAX - 2)
+					break;
 				comm[c++] = strdup(f.body[k]);
 			}
 			expand(comm);
 			execute(comm);
-            // ARE YOU FUNKIER DEAR ABDEL?
-            clear(comm);
-        }
+			// ARE YOU FUNKIER DEAR ABDEL?
+			clear(comm);
+		}
 	}
 	return EXIT_SUCCESS;
-}
+}*/
 
 int main(void)
 {
@@ -209,14 +208,15 @@ int main(void)
 	compile_regex();
 
 	while ((line = readline("% "))) {
-		if (!*line) {
+		if (!(*line)) {
 			free(line);
 			continue;
 		}
 		add_history(line);
 
-		parse(cmd, &line, " ");	// XXX free(line)
-		if (!*cmd) {
+		parse(cmd, &line, " ");
+		free(line);
+		if (!(*cmd)) {
 			continue;
 		}
 
@@ -230,30 +230,38 @@ int main(void)
 				continue;
 			}
 
+			expand(&cmd[1]);	// Expands env. variable
 			if (cd(cmd[1]) == -1) {
 				fprintf(stderr, "twado: cd: %s: %s\n",
 					cmd[1], strerror(errno));
 			}
 			continue;
 		} else if (strcmp(cmd[0], "for") == 0) {
-			for_me(cmd);
+			// FIXME For loop
 			continue;
 		}
 
 		/* Environment variables */
+		expand(cmd);
 		if (env_assign(cmd)) {
 			for (int i = 0; cmd[i] != NULL; i++) {
 				if (putenv(cmd[i]) != 0) {
 					perror("twado");
-					break;	// XXX
+					//break; // XXX
 				}
 			}
 			continue;
 		}
-		// TODO Could be improved
+
+		/* Execution */
+		// XXX Clean up
 		int j = 0;
 		for (int i = 0; cmd[i] != NULL; i++) {
-			if (strcmp(cmd[i], "||") == 0) {
+			if (strcmp(cmd[i], ";") == 0) {
+				cmd[i] = NULL;
+				execute(&cmd[j]);
+				j = i + 1;
+			} else if (strcmp(cmd[i], "||") == 0) {
 				cmd[i] = NULL;
 				if (execute(&cmd[j]) == 0) {
 					j = -1;
@@ -269,7 +277,6 @@ int main(void)
 				j = i + 1;
 			}
 		}
-
 		if (j != -1) {
 			execute(&cmd[j]);
 		}
