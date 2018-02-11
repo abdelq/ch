@@ -5,6 +5,8 @@
  *      - Fuite de mémoire dans la fonction expand
  *      - Retour d'un string vide plutôt que de sauter une variable d'env.
  *      inexistante (e.g. echo $HOME $COCOLAPIN $HOME)
+ *      - On ne vérifit pas la présence de ; avant done
+ *      - Pas de commandes built-in à l'intérieur d'un for (cd, exit)
  */
 
 #include <errno.h>
@@ -187,11 +189,11 @@ void loop(char **cmd)
 	};
 
 	if (strcmp(cmd[2], "in") != 0) {
-		fprintf(stderr, "twado: Malformed for loop: missing 'in' statement");	// XXX
+		fprintf(stderr, "twado: Malformed for loop: missing 'in' statement\n");	// XXX
 		return;
 	}
 	if (strcmp(cmd[3], ";") == 0) {
-		fprintf(stderr, "twado: Malformed for loop: missing a range");	// XXX
+		fprintf(stderr, "twado: Malformed for loop: missing a range\n");	// XXX
 		return;
 	}
 
@@ -203,29 +205,45 @@ void loop(char **cmd)
 	cmd[i] = NULL;		// Replaces ;
 
 	if (strcmp(cmd[++i], "do") != 0) {
-		fprintf(stderr, "twado: Malformed for loop: missing 'do' statement");	// XXX
+		fprintf(stderr, "twado: Malformed for loop: missing 'do' statement\n");	// XXX
 		return;
 	}
 	if (strcmp(cmd[++i], ";") == 0) {
-		fprintf(stderr, "twado: Malformed for loop: missing body");	// XXX
+		fprintf(stderr, "twado: Malformed for loop: missing body\n");	// XXX
 		return;
 	}
 
 	floop.body = &cmd[i];
 
-	// TODO Verify existence of ; done at the end
-	// TODO Replace done by NULL ? Update second loop w/ j
-	// TODO Verify that *body is a "for" and launch recursion
+	// FIXME Last test case + echo $i $j; w/ ; next to the rest
+	while (cmd[i]) {
+		i++;
+	}
+	if (strcmp(cmd[--i], "done") != 0) {
+		fprintf(stderr, "twado: Malformed for loop: missing 'done'\n");	// XXX
+		return;
+	}
+	cmd[i] = NULL;		// Replaces done
+	if (strcmp(cmd[--i], ";") != 0) {
+		fprintf(stderr, "twado: Malformed for loop: missing ';' before done\n");	// XXX
+		return;
+	}
+	cmd[i] = NULL;		// Replaces ;
 
 	expand(floop.values);
 	for (int i = 0; floop.values[i]; i++) {
 		setenv(floop.var, floop.values[i], 1);	// XXX
 
 		char *cmd[_POSIX_ARG_MAX];	// XXX
-		for (int j = 0; strcmp(floop.body[j], "done") != 0; j++) {
+		for (int j = 0; floop.body[j]; j++) {
 			cmd[j] = strdup(floop.body[j]);
 		}
 
+		if (strcmp(*cmd, "for") == 0) {
+			loop(cmd);
+			unsetenv(floop.var);	// XXX
+			continue;
+		}
 		expand(cmd);
 		run(cmd);
 		unsetenv(floop.var);	// XXX
