@@ -89,30 +89,50 @@ void expand(char **args)
 				env = "";
 
 			char *arg = malloc(pmatch->rm_so + 1 + strlen(env) + 1 + strlen(args[i] + pmatch->rm_so + len) + 1);	// XXX
-			strncpy(arg, args[i], pmatch->rm_so);
+			strncpy(arg, args[i], (size_t) pmatch->rm_so);
 			arg[pmatch->rm_so] = '\0';	// XXX
 			strcat(arg, env);
 			strcat(arg, args[i] + pmatch->rm_so + len);
 			args[i] = arg;
 		}
 	}
+
+	/*if (arg[0] == '~') {
+	   if (strlen(arg) == 1) {
+	   arg = getenv("HOME");
+	   }
+	   } */
 }
 
 void parse(char **args, char **line, char *sep)
 {
+	//char *ln = *line; // XXX
 	char *arg;
 	while ((arg = strsep(line, sep))) {
 		if (*arg) {
-			// TODO Manage ~
-			if (arg[0] == '~') {
-				if (strlen(arg) == 1) {
-					arg = getenv("HOME");
+			*args++ = arg;
+			// TODO Do the same for && and ||
+			// TODO This should be looping
+			// FIXME Less ugly + maybe strsep
+			if (strcmp(arg, ";") != 0) {
+				char *kek = strstr(arg, ";");
+				if (kek) {
+					*kek = '\0';
+					if (*(kek + 1) == '\0') {	// ui;
+						*args++ = ";";
+					} else if (kek == arg) {	// ;echo
+						*(args - 1) = ";";
+						*args++ = arg + 1;
+					} else {	// wow;echo
+						*args++ = ";";
+						*args++ = kek + 1;
+					}
 				}
 			}
-			*args++ = arg;
 		}
 	}
 	*args = NULL;
+	//free(ln); // XXX
 }
 
 int execute(char **cmd)
@@ -215,7 +235,6 @@ void loop(char **cmd)
 
 	floop.body = &cmd[i];
 
-	// FIXME Last test case + echo $i $j; w/ ; next to the rest
 	while (cmd[i]) {
 		i++;
 	}
@@ -235,9 +254,11 @@ void loop(char **cmd)
 		setenv(floop.var, floop.values[i], 1);	// XXX
 
 		char *cmd[_POSIX_ARG_MAX];	// XXX
-		for (int j = 0; floop.body[j]; j++) {
+		int j;
+		for (j = 0; floop.body[j]; j++) {
 			cmd[j] = strdup(floop.body[j]);
 		}
+		cmd[j] = NULL;
 
 		if (strcmp(*cmd, "for") == 0) {
 			loop(cmd);
@@ -245,9 +266,14 @@ void loop(char **cmd)
 			continue;
 		}
 		expand(cmd);
+		/*for (int k = 0; cmd[k] != NULL; k++) {
+		   puts(cmd[k]);
+		   } */
 		run(cmd);
 		unsetenv(floop.var);	// XXX
 	}
+
+	//floop = {.var = NULL};
 }
 
 int main(void)
@@ -264,7 +290,6 @@ int main(void)
 		add_history(line);
 
 		parse(cmd, &line, " ");
-		free(line);
 		if (!(*cmd)) {
 			continue;
 		}
