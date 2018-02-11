@@ -276,6 +276,49 @@ void loop(char **cmd)
 	//floop = {.var = NULL};
 }
 
+void twadoversary(){
+    static const char* CAT1[] = {
+        "         ",
+        "         ",
+        " ,---/V\\ ",
+        "~|__(o.o)",
+        " U U U U "
+    };
+    static const char* CAT2[] = {
+        "         ",
+        "         ",
+        " ,---/V\\ ",
+        "~|__(o.o)",
+        "  UU  UU "
+    };
+
+    int b = 0;
+    int line = 9;
+    while(1){
+        for(int i =0; i<5; i++){
+            for(int l=9; l<line;l++) fprintf(stdout," ");
+            if(b){
+                fprintf(stdout, "%s%s",CAT1[i], "\n");
+            } else {
+                fprintf(stdout, "%s%s",CAT2[i], "\n");
+            }
+            b = (b+1)%2;
+        }
+        usleep(200000);
+        for(int i=0; i<5;i++){
+            for(int j=0;j<line;j++){
+                fprintf(stdout,"\b");
+            }
+            fprintf(stdout,"\r");
+        }
+        line = (line+1)%22;
+        if(line<9){
+            line = 9;
+        }
+    }
+
+}
+
 int main(void)
 {
 	char *line, *cmd[_POSIX_ARG_MAX];
@@ -312,6 +355,10 @@ int main(void)
 			continue;
 		} else if (strcmp(cmd[0], "for") == 0) {
 			loop(cmd);
+			continue;
+		} else if (strcmp(cmd[0], "twadoversary") == 0) {
+            //Easter egg
+			twadoversary();
 			continue;
 		}
 

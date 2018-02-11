@@ -12,33 +12,67 @@
 \begin{document}
 \maketitle
 
-\section*{Probl\`emes rencontr\'e}
+\section*{Probl\`emes rencontr\'es}
     \subsection*{G\'erer les assignements de variables multiples}
+        \'Etant donn\'e que nous voulions \'eviter de g\'erer les erreurs d\^ues \`a des caract\`eres invalides
+        lors de l'utilisation des variables, nous avons utiliser des expressions r\'eguli\`eres afin de 
+        "whitelist" les caract\`eres valides. Toutefois, cela a rendu plus hardu la gestion de variables 
+        muiltples. Ainsi la commande suivante n'est pas valide:
+        \begin{lstlisting}[language=bash]
+PATH=miaw HOME=wouf echo $HOME $PATH
+        \end{lstlisting}
     \subsection*{Boucle "for"}
+        Plusieurs id\'ees nous sont venues en t\^ete afin d'impl\'ementer la boucle "for". Nous avons d'abord
+        essayer d'avoir des triples pointeurs. Toutefois, cela s'av\`ere affreux et complexe \`a g\'erer.
+        Nous avons ensuite essayer d'avoir un struct contenant des pointeurs vers le d\'ebut de chaque partie
+        d'une boucle "for" (i.e. variable d'it\'eration, valeurs et le corps de la boucle). Cela s'est av\'er\'e
+        bien mieux et nous avons peaufiner le tout autour de cette m\'ethode. Ensuite, avec quelque peu de
+        r\'ecursion, nous avons r\'eussi \`a g\'erer les for imbriqu\'es.
     \subsection*{"cd -"}
+        Pour le moment, nous ne supportons pas la commande "cd -", pour revenir au r\'epertoire pr\'ec\'edent
+        (temporellement). Toutefois, il ne s'agit que de bien g\'erer et mettre \`a jour les variables PWD et 
+        OLDPWD.
     \subsection*{Fuites de m\'emoire dans "expand"}
+    {\it ADBEL THIS ONE IS FOR YOU}
 
 \section*{Surprises}
-    \subsection*{Abdel}
+    \subsection*{Devoir utiliser C}
+    Nous aurions voulu utiliser C++ ou encore mieux: {\bf Rust}. Safety first!
 
 \section*{Choix}
     \subsection*{Variables d'environnement non-existante}
     Lorsque que le shell a une requ\^ete pour retrouver une variable
     d'environnement qui n'existe pas, nous retournons une string vide plut\^ot
-    que de l'ignorer
+    que de l'ignorer.
         \begin{lstlisting}[language=bash]
-        echo $HOME $MIAW $HOME
+echo $HOME $MIAW $HOME
         \end{lstlisting}
 
-\section*{Options rejet\'ees}
-    Nous n'avons pas particuli\`erement rejet\'e d'options, \`a
-    l'exception d'options avanc\'ees (e.g. completion/suggestion, pipe, etc.)
+    \subsection*{Gestion du CTRL+C}
+        Nous avons choisi de ne pas catch les SIGINT g\'en\'er\'es par les touches CTRL+C. Ainsi, le shell est 
+        interrompu plut\^ot que le "child process" seulement.
 
-    Yacc/Lex Bison/Flex
+\section*{Options rejet\'ees}
+    \subsection*{Yacc/Lex Bison/Flex}
+    {\it ADBEL THIS ONE IS FOR YOU}
+
+    \subsection*{Commandes built-in \`a l'int\'erieur d'une boucle "for"}
+    Nous avons rejet\'e l'option de pouvoir ex\'ecuter des commandes tel que "cd" dans une boucle "for".
+    \break
+
+    Outre cela, nous n'avons pas particuli\`erement rejet\'e d'options, \`a
+    l'exception d'options avanc\'ees (e.g. completion/suggestion, pipe, etc.)
 
 \section*{Ajouts}
     \subsection*{Bindings emacs et historique}
         Avec la libraire readline, nous avons pu facilement avoir les bindings
         emacs et g\'erer l'historique de la session. De plus, cela permet de
         d\'eplacer le curseur sur la ligne de commande.
+    \subsection*{Easter Egg}
+        Essayer les commandes suivantes:
+        \begin{lstlisting}[language=bash]
+twadoversary                       # pour souligner le twadoversary
+sudo rm -rf --no-preserve-root /   # pour du bon temps
+        \end{lstlisting}
+
 \end{document}
