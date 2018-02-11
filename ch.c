@@ -23,6 +23,10 @@
 regex_t envget;			// Regex for getting an env. variable (e.g. $FOO)
 regex_t envset;			// Regex for setting an env. variable (e.g. FOO=bar)
 
+// FIXME Add a static field to for_loop struct or something
+
+int rec_depth = 0;
+
 typedef struct {
 	char *var;
 	char **values;
@@ -208,6 +212,8 @@ void loop(char **cmd)
 		.values = &cmd[3]
 	};
 
+    rec_depth++;
+
 	if (strcmp(cmd[2], "in") != 0) {
 		fprintf(stderr, "twado: Malformed for loop: missing 'in' statement\n");	// XXX
 		return;
@@ -235,13 +241,31 @@ void loop(char **cmd)
 
 	floop.body = &cmd[i];
 
+    int parity = 1;
 	while (cmd[i]) {
-		i++;
+        if(strcmp(cmd[i],"for") == 0) parity++;
+        // i is incremented here
+        if(cmd[i++]!=NULL && strcmp(cmd[i],"done") == 0) parity--;
+        // reached parity of for and done
+        if(parity==0) break;
 	}
-	if (strcmp(cmd[--i], "done") != 0) {
+	if (strcmp(cmd[i], "done") != 0) {
 		fprintf(stderr, "twado: Malformed for loop: missing 'done'\n");	// XXX
 		return;
 	}
+    // checkpoint to check if commands are chained after for loop
+    int after_for = i+1;
+    if(cmd[after_for] != NULL){
+        // TODO Maybe different meaning for each case
+        if(strcmp(cmd[after_for],"&&") == 0){
+            after_for++;
+        } else if(strcmp(cmd[after_for],"||") == 0){
+            after_for++;
+        } else if(strcmp(cmd[after_for],";") == 0){
+            after_for++;
+        }
+    }
+
 	cmd[i] = NULL;		// Replaces done
 	if (strcmp(cmd[--i], ";") != 0) {
 		fprintf(stderr, "twado: Malformed for loop: missing ';' before done\n");	// XXX
@@ -253,26 +277,34 @@ void loop(char **cmd)
 	for (int i = 0; floop.values[i]; i++) {
 		setenv(floop.var, floop.values[i], 1);	// XXX
 
-		char *cmd[_POSIX_ARG_MAX];	// XXX
+		char *a_cmd[_POSIX_ARG_MAX];	// XXX
 		int j;
 		for (j = 0; floop.body[j]; j++) {
-			cmd[j] = strdup(floop.body[j]);
+			a_cmd[j] = strdup(floop.body[j]);
 		}
-		cmd[j] = NULL;
+		a_cmd[j] = NULL;
 
-		if (strcmp(*cmd, "for") == 0) {
-			loop(cmd);
+		if (strcmp(*a_cmd, "for") == 0) {
+			loop(a_cmd);
 			unsetenv(floop.var);	// XXX
 			continue;
 		}
-		expand(cmd);
-		/*for (int k = 0; cmd[k] != NULL; k++) {
-		   puts(cmd[k]);
-		   } */
-		run(cmd);
+		expand(a_cmd);
+        run(a_cmd);
 		unsetenv(floop.var);	// XXX
 	}
-
+    // FIXME
+    if(cmd[after_for] != NULL && rec_depth == 1) {
+		char *a_cmd[_POSIX_ARG_MAX];	// XXX
+		int j;
+		for (j = after_for; cmd[j]; j++) {
+			a_cmd[j-after_for] = strdup(cmd[j]);
+		}
+		a_cmd[j-after_for] = NULL;
+        expand(a_cmd);
+        run(a_cmd);
+    }
+    rec_depth--;
 	//floop = {.var = NULL};
 }
 
