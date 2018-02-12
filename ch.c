@@ -7,6 +7,8 @@
  *      inexistante (e.g. echo $HOME $COCOLAPIN $HOME)
  *      - On ne vérifit pas la présence de ; avant done
  *      - Pas de commandes built-in à l'intérieur d'un for (cd, exit)
+ *
+ * Ascii art de chat pris de https://github.com/djui/nyancat
  */
 
 #include <errno.h>
