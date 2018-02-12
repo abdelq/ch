@@ -101,11 +101,13 @@ void expand(char **args)
 		}
 	}
 
-	/*if (arg[0] == '~') {
+	/*
+	   if (arg[0] == '~') {
 	   if (strlen(arg) == 1) {
 	   arg = getenv("HOME");
 	   }
-	   } */
+	   }
+	 */
 }
 
 void parse(char **args, char **line, char *sep)
@@ -117,7 +119,7 @@ void parse(char **args, char **line, char *sep)
 			*args++ = arg;
 			// TODO Do the same for && and ||
 			// TODO This should be looping
-			// FIXME Less ugly + maybe strsep
+			// TODO Less ugly + maybe strsep
 			if (strcmp(arg, ";") != 0) {
 				char *kek = strstr(arg, ";");
 				if (kek) {
@@ -212,14 +214,16 @@ void loop(char **cmd)
 		.values = &cmd[3]
 	};
 
-    rec_depth++;
+	rec_depth++;
 
 	if (strcmp(cmd[2], "in") != 0) {
-		fprintf(stderr, "twado: Malformed for loop: missing 'in' statement\n");	// XXX
+		fprintf(stderr,
+                "twado: Malformed for loop: missing 'in' statement\n");	// XXX
 		return;
 	}
 	if (strcmp(cmd[3], ";") == 0) {
-		fprintf(stderr, "twado: Malformed for loop: missing a range\n");	// XXX
+		fprintf(stderr,
+                "twado: Malformed for loop: missing a range\n");	// XXX
 		return;
 	}
 
@@ -231,44 +235,53 @@ void loop(char **cmd)
 	cmd[i] = NULL;		// Replaces ;
 
 	if (strcmp(cmd[++i], "do") != 0) {
-		fprintf(stderr, "twado: Malformed for loop: missing 'do' statement\n");	// XXX
+		fprintf(stderr,
+                "twado: Malformed for loop: missing 'do' statement\n");	// XXX
 		return;
 	}
 	if (strcmp(cmd[++i], ";") == 0) {
-		fprintf(stderr, "twado: Malformed for loop: missing body\n");	// XXX
+		fprintf(stderr,
+                "twado: Malformed for loop: missing body\n");	// XXX
 		return;
 	}
 
 	floop.body = &cmd[i];
 
-    int parity = 1;
+	int parity = 1;
 	while (cmd[i]) {
-        if(strcmp(cmd[i],"for") == 0) parity++;
-        // i is incremented here
-        if(cmd[i++]!=NULL && strcmp(cmd[i],"done") == 0) parity--;
-        // reached parity of for and done
-        if(parity==0) break;
+		if (strcmp(cmd[i], "for") == 0) {
+			parity++;
+        }
+		// i is incremented here
+		if (cmd[i++] != NULL && strcmp(cmd[i], "done") == 0) {
+			parity--;
+        }
+		// reached parity of for and done
+		if (parity == 0) {
+			break;
+        }
 	}
 	if (strcmp(cmd[i], "done") != 0) {
 		fprintf(stderr, "twado: Malformed for loop: missing 'done'\n");	// XXX
 		return;
 	}
-    // checkpoint to check if commands are chained after for loop
-    int after_for = i+1;
-    if(cmd[after_for] != NULL){
-        // TODO Maybe different meaning for each case
-        if(strcmp(cmd[after_for],"&&") == 0){
-            after_for++;
-        } else if(strcmp(cmd[after_for],"||") == 0){
-            after_for++;
-        } else if(strcmp(cmd[after_for],";") == 0){
-            after_for++;
-        }
-    }
+	// checkpoint to check if commands are chained after for loop
+	int after_for = i + 1;
+	if (cmd[after_for] != NULL) {
+		// TODO Maybe different meaning for each case
+		if (strcmp(cmd[after_for], "&&") == 0) {
+			after_for++;
+		} else if (strcmp(cmd[after_for], "||") == 0) {
+			after_for++;
+		} else if (strcmp(cmd[after_for], ";") == 0) {
+			after_for++;
+		}
+	}
 
 	cmd[i] = NULL;		// Replaces done
 	if (strcmp(cmd[--i], ";") != 0) {
-		fprintf(stderr, "twado: Malformed for loop: missing ';' before done\n");	// XXX
+		fprintf(stderr,
+                "twado: Malformed for loop: missing ';' before done\n");	// XXX
 		return;
 	}
 	cmd[i] = NULL;		// Replaces ;
@@ -290,64 +303,65 @@ void loop(char **cmd)
 			continue;
 		}
 		expand(a_cmd);
-        run(a_cmd);
+		run(a_cmd);
 		unsetenv(floop.var);	// XXX
 	}
-    // FIXME
-    if(cmd[after_for] != NULL && rec_depth == 1) {
+	// FIXME
+	if (cmd[after_for] != NULL && rec_depth == 1) {
 		char *a_cmd[_POSIX_ARG_MAX];	// XXX
 		int j;
 		for (j = after_for; cmd[j]; j++) {
-			a_cmd[j-after_for] = strdup(cmd[j]);
+			a_cmd[j - after_for] = strdup(cmd[j]);
 		}
-		a_cmd[j-after_for] = NULL;
-        expand(a_cmd);
-        run(a_cmd);
-    }
-    rec_depth--;
-	//floop = {.var = NULL};
+		a_cmd[j - after_for] = NULL;
+		expand(a_cmd);
+		run(a_cmd);
+	}
+	rec_depth--;
 }
 
-void twadoversary(){
-    static const char* CAT1[] = {
-        "         ",
-        "         ",
-        " ,---/V\\ ",
-        "~|__(o.o)",
-        " U U U U "
-    };
-    static const char* CAT2[] = {
-        "         ",
-        "         ",
-        " ,---/V\\ ",
-        "~|__(o.o)",
-        "  UU  UU "
-    };
+void twadoversary()
+{
+	static const char *CAT1[] = {
+		"         ",
+		"         ",
+		" ,---/V\\ ",
+		"~|__(o.o)",
+		" U U U U "
+	};
+	static const char *CAT2[] = {
+		"         ",
+		"         ",
+		" ,---/V\\ ",
+		"~|__(o.o)",
+		"  UU  UU "
+	};
 
-    int b = 0;
-    int line = 9;
-    while(1){
-        for(int i =0; i<5; i++){
-            for(int l=9; l<line;l++) fprintf(stdout," ");
-            if(b){
-                fprintf(stdout, "%s%s",CAT1[i], "\n");
-            } else {
-                fprintf(stdout, "%s%s",CAT2[i], "\n");
-            }
-            b = (b+1)%2;
-        }
-        usleep(200000);
-        for(int i=0; i<5;i++){
-            for(int j=0;j<line;j++){
-                fprintf(stdout,"\b");
-            }
-            fprintf(stdout,"\r");
-        }
-        line = (line+1)%22;
-        if(line<9){
-            line = 9;
-        }
-    }
+	int b = 0;
+	int line = 9;
+	while (1) {
+		for (int i = 0; i < 5; i++) {
+			for (int l = 9; l < line; l++)
+				fprintf(stdout, " ");
+			if (b) {
+				fprintf(stdout, "%s%s", CAT1[i], "\n");
+			} else {
+				fprintf(stdout, "%s%s", CAT2[i], "\n");
+			}
+			b = (b + 1) % 2;
+		}
+		usleep(200000);
+		for (int i = 0; i < 5; i++) {
+			for (int j = 0; j < line; j++) {
+				fprintf(stdout, "\b");
+			}
+			fprintf(stdout, "\r");
+		}
+		line = (line + 1) % 22;
+		if (line < 9) {
+			line = 9;
+		}
+	}
 
 }
 
@@ -388,8 +402,7 @@ int main(void)
 		} else if (strcmp(cmd[0], "for") == 0) {
 			loop(cmd);
 			continue;
-		} else if (strcmp(cmd[0], "twadoversary") == 0) {
-            //Easter egg
+		} else if (strcmp(cmd[0], "twado") == 0) {	//Easter egg
 			twadoversary();
 			continue;
 		}
@@ -400,7 +413,7 @@ int main(void)
 			for (int i = 0; cmd[i] != NULL; i++) {
 				if (putenv(cmd[i]) != 0) {
 					perror("twado");
-					//break; // XXX
+					//break;
 				}
 			}
 			continue;
