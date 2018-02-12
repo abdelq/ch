@@ -16,11 +16,16 @@
     \subsection*{G\'erer les assignements de variables multiples}
         \'Etant donn\'e que nous voulions \'eviter de g\'erer les erreurs d\^ues \`a des caract\`eres invalides
         lors de l'utilisation des variables, nous avons utiliser des expressions r\'eguli\`eres afin de 
-        "whitelist" les caract\`eres valides. Toutefois, cela a rendu plus hardu la gestion de variables 
-        muiltples. Ainsi la commande suivante n'est pas valide:
+        "whitelist" les caract\`eres valides. Toutefois, cela a rendu plus hardu la gestion de variables de `shell`.
+        Ainsi la commande suivante n'est pas valide:
         \begin{lstlisting}[language=bash]
 PATH=miaw HOME=wouf echo $HOME $PATH
         \end{lstlisting}
+        Toutefois, il est possible d'assigner multiples variables d'environnement comme suit :
+        \begin{lstlisting}[language=bash]
+COCO=lapin MIAW=RonRonRon
+        \end{lstlisting}
+
     \subsection*{Boucle "for"}
         Plusieurs id\'ees nous sont venues en t\^ete afin d'impl\'ementer la boucle "for". Nous avons d'abord
         essayer d'avoir des triples pointeurs. Toutefois, cela s'av\`ere affreux et complexe \`a g\'erer.
@@ -32,12 +37,19 @@ PATH=miaw HOME=wouf echo $HOME $PATH
         Pour le moment, nous ne supportons pas la commande "cd -", pour revenir au r\'epertoire pr\'ec\'edent
         (temporellement). Toutefois, il ne s'agit que de bien g\'erer et mettre \`a jour les variables PWD et 
         OLDPWD.
-    \subsection*{Fuites de m\'emoire dans "expand"}
-    {\it ADBEL THIS ONE IS FOR YOU}
+    %\subsection*{Fuites de m\'emoire dans "expand"}
+    %Initialement arg pointe vers de la mémoire dans le "stack". Puis par la suite,
+    %arg pointe sur le "heap", dû à l'expansion au \textit{runtime} des variables
+    %d'environnement que l'on concatène à d'autres chaînes de caractères.
+    %Le seul problème, est que l'on ne peut pas nécessairement appeler free
 
 \section*{Surprises}
-    \subsection*{Devoir utiliser C}
-    Nous aurions voulu utiliser C++ ou encore mieux: {\bf Rust}. Safety first!
+    Le travail a été plus ardu qu'initialement prévu.
+    Le manque de temps n'a pas aidé.
+    La manipulation de string n'est pas si aisée que ça, comparativement à des
+    langages plus haut niveau.
+    %\subsection*{Devoir utiliser C}
+    %Nous aurions voulu utiliser C++ ou encore mieux: {\bf Rust}. Safety first!
 
 \section*{Choix}
     \subsection*{Variables d'environnement non-existante}
@@ -54,7 +66,17 @@ echo $HOME $MIAW $HOME
 
 \section*{Options rejet\'ees}
     \subsection*{Yacc/Lex Bison/Flex}
-    {\it ADBEL THIS ONE IS FOR YOU}
+    L'idée originale avec ce projet était d'utiliser Yacc/Lex ou Bison/Flex pour
+    générer une grammaire et son parseur, ce qui simplifierait énormément la tâche,
+    considérant que le parsing des expressions et un des éléments les plus compliqués,
+    surtout lorsqu'on parle de récursitivité dans les boucles.
+
+    Cependant, par manque de temps, l'étude de la syntaxe byzantine de Yacc/Lex
+    n'était pas une si bonne option, surtout pour un shell relativement de base.
+
+    En conséquent, nous avons utiliser strsep(3). Un choix plutôt typique, mais
+    qui représente une légère amélioration par rapport à l'utilisation de 
+    strtok(3).
 
     \subsection*{Commandes built-in \`a l'int\'erieur d'une boucle "for"}
     Nous avons rejet\'e l'option de pouvoir ex\'ecuter des commandes tel que "cd" dans une boucle "for".
@@ -71,7 +93,7 @@ echo $HOME $MIAW $HOME
     \subsection*{Easter Egg}
         Essayer les commandes suivantes:
         \begin{lstlisting}[language=bash]
-twadoversary                       # pour souligner le twadoversary
+twado                       # pour souligner le twadoversary
 sudo rm -rf --no-preserve-root /   # pour du bon temps
         \end{lstlisting}
 

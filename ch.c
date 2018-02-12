@@ -2,7 +2,6 @@
  * Auteurs : Abdelhakim Qbaich, Rémi Langevin
  * Date : 2018-02-11
  * Problèmes connus :
- *      - Fuite de mémoire dans la fonction expand
  *      - Retour d'un string vide plutôt que de sauter une variable d'env.
  *        inexistante (e.g. echo $HOME $COCOLAPIN $HOME)
  *      - Pas de commandes built-in à l'intérieur d'un for (cd, exit)
@@ -83,6 +82,7 @@ void expand(char **args)
 	regmatch_t pmatch[1];
 
 	for (int i = 0; args[i] != NULL; i++) {
+        int j = 0;
 		while (regexec(&envget, args[i], 1, pmatch, 0) == 0) {
 			// Copy $ENV substring
 			int len = pmatch->rm_eo - pmatch->rm_so;
@@ -94,6 +94,10 @@ void expand(char **args)
 			if (env == NULL)
 				env = "";
 
+            if (j != 0) {
+                free(args[i]);
+            }
+
 			char *arg = malloc(pmatch->rm_so + 1 + strlen(env) + 1 +
 				strlen(args[i] + pmatch->rm_so + len) + 1);	// XXX
 			strncpy(arg, args[i], (size_t) pmatch->rm_so);
@@ -101,6 +105,7 @@ void expand(char **args)
 			strcat(arg, env);
 			strcat(arg, args[i] + pmatch->rm_so + len);
 			args[i] = arg;
+            j++;
 		}
 	}
 
