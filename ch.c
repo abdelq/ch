@@ -4,9 +4,9 @@
  * Problèmes connus :
  *      - Fuite de mémoire dans la fonction expand
  *      - Retour d'un string vide plutôt que de sauter une variable d'env.
- *      inexistante (e.g. echo $HOME $COCOLAPIN $HOME)
- *      - On ne vérifit pas la présence de ; avant done
+ *        inexistante (e.g. echo $HOME $COCOLAPIN $HOME)
  *      - Pas de commandes built-in à l'intérieur d'un for (cd, exit)
+ *      - On considère ce qui suit le for comme un ;
  *
  * Ascii art de chat pris de https://github.com/djui/nyancat
  */
