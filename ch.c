@@ -94,7 +94,8 @@ void expand(char **args)
 			if (env == NULL)
 				env = "";
 
-			char *arg = malloc(pmatch->rm_so + 1 + strlen(env) + 1 + strlen(args[i] + pmatch->rm_so + len) + 1);	// XXX
+			char *arg = malloc(pmatch->rm_so + 1 + strlen(env) + 1 +
+				strlen(args[i] + pmatch->rm_so + len) + 1);	// XXX
 			strncpy(arg, args[i], (size_t) pmatch->rm_so);
 			arg[pmatch->rm_so] = '\0';	// XXX
 			strcat(arg, env);
