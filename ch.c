@@ -217,13 +217,11 @@ void loop(char **cmd)
 	rec_depth++;
 
 	if (strcmp(cmd[2], "in") != 0) {
-		fprintf(stderr,
-                "twado: Malformed for loop: missing 'in' statement\n");	// XXX
+		fprintf(stderr, "twado: Malformed for loop: missing 'in' statement\n");	// XXX
 		return;
 	}
 	if (strcmp(cmd[3], ";") == 0) {
-		fprintf(stderr,
-                "twado: Malformed for loop: missing a range\n");	// XXX
+		fprintf(stderr, "twado: Malformed for loop: missing a range\n");	// XXX
 		return;
 	}
 
@@ -235,13 +233,11 @@ void loop(char **cmd)
 	cmd[i] = NULL;		// Replaces ;
 
 	if (strcmp(cmd[++i], "do") != 0) {
-		fprintf(stderr,
-                "twado: Malformed for loop: missing 'do' statement\n");	// XXX
+		fprintf(stderr, "twado: Malformed for loop: missing 'do' statement\n");	// XXX
 		return;
 	}
 	if (strcmp(cmd[++i], ";") == 0) {
-		fprintf(stderr,
-                "twado: Malformed for loop: missing body\n");	// XXX
+		fprintf(stderr, "twado: Malformed for loop: missing body\n");	// XXX
 		return;
 	}
 
@@ -251,17 +247,17 @@ void loop(char **cmd)
 	while (cmd[i]) {
 		if (strcmp(cmd[i], "for") == 0) {
 			parity++;
-        }
+		}
 		// i is incremented here
-		if (cmd[i++] != NULL && strcmp(cmd[i], "done") == 0) {
+		if (cmd[i++] && cmd[i] && strcmp(cmd[i], "done") == 0) {
 			parity--;
-        }
+		}
 		// reached parity of for and done
 		if (parity == 0) {
 			break;
-        }
+		}
 	}
-	if (strcmp(cmd[i], "done") != 0) {
+	if (cmd[i] == NULL || strcmp(cmd[i], "done") != 0) {
 		fprintf(stderr, "twado: Malformed for loop: missing 'done'\n");	// XXX
 		return;
 	}
@@ -280,8 +276,7 @@ void loop(char **cmd)
 
 	cmd[i] = NULL;		// Replaces done
 	if (strcmp(cmd[--i], ";") != 0) {
-		fprintf(stderr,
-                "twado: Malformed for loop: missing ';' before done\n");	// XXX
+		fprintf(stderr, "twado: Malformed for loop: missing ';' before done\n");	// XXX
 		return;
 	}
 	cmd[i] = NULL;		// Replaces ;
