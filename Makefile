@@ -3,7 +3,7 @@
 # Attention, dans les fichiers Make, les TAB ont une signification très
 # spécifique.  Ne pas remplacer des TABs par des espaces (ou l'inverse).
 
-CFLAGS=-Wall
+CFLAGS=-lreadline
 
 CC=cc
 LD=cc
@@ -11,7 +11,8 @@ RM=rm -f
 PDFLATEX=pdflatex
 
 # Point d'entrée principal
-all: rapport.pdf #tp-shell.pdf
+#all: rapport.pdf #tp-shell.pdf
+default: ch
 
 clean:
 	$(RM) *.o ch *.aux *.log *.pdf
